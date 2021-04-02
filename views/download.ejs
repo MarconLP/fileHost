@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Download file</title>
+</head>
+<body>
+
+<%
+function bytesToSize(bytes) {
+    var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === 0) return '0 Byte';
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+}
+%>
+
+<% if (data !== undefined && data.status === "ready") { %>
+    <h1>Download of file id: <%= data.file %> (<%= bytesToSize(data.size) %>)</h1>
+    <% if (data.password !== '') { %>
+        <p style="color: green">Password protected</p>
+    <% } %>
+
+    <form action="/start/<%= data.upload_id %>">
+        <button>download</button>
+    </form>
+    <form action="/<%= data.upload_id %>/?_method=DELETE" method="POST">
+        <button>delete file</button>
+    </form>
+
+
+    <p><%# data %></p>
+<% } else if (data !== undefined && data.status === "processing") { %>
+    <h1>file is processing</h1>
+<% } else { %>
+    <h1>file not found</h1>
+<% } %>
+
+</body>
+</html>
