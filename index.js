@@ -7,7 +7,10 @@ const express = require('express'),
     multer = require('multer'),
     uuid = require('uuid').v4,
     mongoose = require('mongoose'),
-    methodOverride = require('method-override')
+    methodOverride = require('method-override'),
+    cookieParser = require('cookie-parser'),
+    session = require('express-session'),
+    bodyParser = require('body-parser')
 
 const upload_uuid = uuid()
 
@@ -40,7 +43,7 @@ const schema = new mongoose.Schema({
     time: Number,
     time_expire: Number,
     size: Number,
-    ip:  String,
+    ip: String,
     password:  String,
     destruct: String, // false, downloads, time
     downloads: Array
@@ -51,15 +54,23 @@ const Upload = mongoose.model('Upload', schema)
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
 
+app.use(cookieParser())
 app.use(methodOverride('_method'))
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(express.urlencoded({ extended: true }))
+app.use(session({
+    secret: '4sd56f45d6',
+    resave: false,
+    saveUninitialized: false,
+    name: 'token'
+}))
+app.use(bodyParser.json())
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Listening on port ${port}`)
 })
 
-function genData(id, filename, size, ip, password) {
+function genData(id, filename, size, ip, password, token) {
     return data = {
         upload_id: id,
         uuid: upload_uuid,
@@ -69,28 +80,33 @@ function genData(id, filename, size, ip, password) {
         time_expire: new Date().getTime(),
         size: size,
         ip: ip,
+        owner: token,
         password: password,
         destruct: false, // false, downloads, time
         downloads: []
-        //     {
-        //         time: 1600011224,
-        //         ip: '0.0.0.0'
-        //     }
-        // ]
     }
 }
 
-function genID() {
+function genID(length = 6) {
     const chars = "qwertzuiopasdfghjklyxcvbnmQWERTZUIOASDFGHJKLYXCVBNM1234567890"
     let id = ""
     while (true) {
         id += chars[Math.floor(Math.random() * chars.length)]
         // TODO: Add database check instead of 1+1=2
-        if (id.length >= 6 && 1+1===2) {
+        if (id.length >= length && 1+1===2) {
             return id
         }
     }
 }
+
+app.get('/cookie/', (req, res) => {
+    res.send(`${req.session.token}`)
+})
+
+app.get('/cookie/:key', (req, res) => {
+    req.session.token = req.params.key
+    res.send(`${req.session.token}`)
+})
 
 app.get('/', (req, res) => {
     res.render('index')
@@ -99,6 +115,7 @@ app.get('/', (req, res) => {
 app.post('/', upload.single('file'), (req, res) => {
     const { password } = req.body
     const { originalname, size } = req.file
+    req.session.token = uuid(64)
     const data = genData(genID(), originalname, size, req.ip, password)
     Upload.create(data)
         .catch(err => console.log(err))
@@ -114,22 +131,25 @@ app.get('/file/:id', (req, res) => {
     const { password } = req.body
     Upload.find({ upload_id: id })
         .then(data => {
-            res.render('download', { data: data[0], password })
+            res.render('download', { data: data[0], password, token: req.session.token })
         })
 })
 
-app.get('/start/:id', (req, res) => {
+app.post('/file/:id', (req, res) => {
     const { id } = req.params
     const { password } = req.body
+    Upload.find({ upload_id: id })
+        .then(data => {
+            res.render('download', { data: data[0], password, token: req.session.token})
+        })
+})
+
+app.post('/start/:id', (req, res) => {
+    const { id } = req.params
     Upload.find({upload_id: id})
         .then(data => {
-            console.log(password)
-            if (password === data[0].password) {
-                const file = path.join(__dirname, `/uploads/${data[0].uuid}-${data[0].file}`)
-                res.download(file, data[0].file)
-            } else {
-                res.send('wrong password')
-            }
+            const file = path.join(__dirname, `/uploads/${data[0].uuid}-${data[0].file}`)
+            res.download(file, data[0].file)
         })
 
 })

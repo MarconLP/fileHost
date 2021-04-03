@@ -18,25 +18,37 @@ function bytesToSize(bytes) {
 }
 %>
 
-<% if (data !== undefined && data.status === "ready") { %>
+<%= token %>
+
+<% if (data === undefined || data.status === 'deleted') { %>
+    <h1>file not found</h1>
+<% } else if (data.status === 'processing') { %>
+    <h1>file is processing</h1>
+<% } else if ((data.password !== '' && password === undefined) || data.password !== password) { %>
+    <% if (password !== undefined) { %>
+        <p>wrong password</p>
+        <p><% password %></p>
+    <% } %>
+    <form action="/file/<%= data.upload_id %>" method="POST">
+        <label for="password">Enter the password</label>
+        <input type="password" name="password" id="password">
+        <button>Submit</button>
+    </form>
+<% } else if (data.status === 'ready') { %>
     <h1>Download of file id: <%= data.file %> (<%= bytesToSize(data.size) %>)</h1>
     <% if (data.password !== '') { %>
         <p style="color: green">Password protected</p>
     <% } %>
-
-    <form action="/start/<%= data.upload_id %>">
+    <form action="/start/<%= data.upload_id %>" method="POST">
+        <input type="password" value="<% password %>" name="password" >
+        <p><% password %></p>
         <button>download</button>
     </form>
     <form action="/<%= data.upload_id %>/?_method=DELETE" method="POST">
         <button>delete file</button>
     </form>
-
-
-    <p><%# data %></p>
-<% } else if (data !== undefined && data.status === "processing") { %>
-    <h1>file is processing</h1>
 <% } else { %>
-    <h1>file not found</h1>
+    <h1>error</h1>
 <% } %>
 
 </body>
