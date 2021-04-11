@@ -11,13 +11,30 @@
 
 <h1>Upload files here</h1>
 
-<form action="" method="POST" enctype="multipart/form-data">
-    <label for="file">Select a file</label>
-    <input type="file" name="file" id="file">
-    <label for="password">Enter password</label>
-    <input type="text" id="password" name="password">
+<form id="upload-form" action="/" method="POST" enctype="multipart/form-data">
+    <div>
+        <label for="file">Select a file</label>
+        <input type="file" name="file" id="file" required>
+    </div>
+    <div>
+        <label for="passwordCheck">Password</label>
+        <input type="checkbox" id="passwordCheck" name="passwordCheck">
+        <label for="password">Enter password</label>
+        <input type="text" id="password" name="password" disabled>
+    </div>
     <button>Submit</button>
 </form>
+
+<script>
+
+    const passwordCheck = document.querySelector('#passwordCheck')
+    const password = document.querySelector('#password')
+
+    passwordCheck.addEventListener('click', () => {
+        password.disabled = !password.disabled
+    })
+
+</script>
 
 </body>
 </html>

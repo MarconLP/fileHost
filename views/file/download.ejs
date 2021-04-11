@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Download</title>
+</head>
+<body>
+
+<%
+function bytesToSize(bytes) {
+    var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === 0) return '0 Byte';
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+}
+%>
+
+<div style="display: flex; justify-content: center; flex-direction: column; align-items: center">
+    <div>
+        <h1><%= upload.name %> (<%= bytesToSize(upload.size) %>)</h1>
+    </div>
+    <p>Download starting</p>
+</div>
+
+<script>
+    window.location.href = window.location.href.replace('start', 'download')
+</script>
+
+</body>
+</html>
