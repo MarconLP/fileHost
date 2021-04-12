@@ -23,8 +23,7 @@ const uploadSchema = new Schema({
         required: true
     },
     time_expire: {
-        type: Number,
-        required: true
+        type: Number
     },
     size: {
         type: Number,
@@ -35,17 +34,16 @@ const uploadSchema = new Schema({
         required: true
     },
     owner: {
-        type: String,
-        required: true
+        type: String
     },
     password: {
-        type: String,
+        type: String
     },
     // destruct: {
     //     type: String,
     // },
     downloads: {
-        type: Array,
+        type: Array
     },
     access: {
         type: Array

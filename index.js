@@ -14,7 +14,8 @@ const express = require('express'),
     Upload = require('./models/upload'),
     AppError = require('./utils/AppError'),
     wrapAsync = require('./utils/wrapAsync'),
-    { uploadSchema } = require('./schemas/joiSchemas')
+    { uploadSchema } = require('./schemas/joiSchemas'),
+    fileRoutes = require('./routes/file')
 
 require('dotenv').config()
 const upload_uuid = uuid()
@@ -45,6 +46,8 @@ mongoose.connect(`mongodb://${process.env.DB_HOST}:${process.env.DB_PORT}/${proc
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
 
+// app.use(session({ secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false, name: 'token',
+//     cookie: { expires: new Date().getTime(new Date().getTime() + ( 2*60*60*1000 )) } }))
 app.use(cookieParser(process.env.COOKIE_SECRET))
 app.use(methodOverride('_method'))
 app.use(express.static(path.join(__dirname, 'public')))
@@ -71,19 +74,19 @@ app.use((req, res, next) => {
     next()
 })
 
-function genData(uploadId, filename, size, password, req) {
+function genData(uploadId, filename, size, password, req, maxDownloads, time_expire) {
     return data = {
         upload_id: uploadId,
         uuid: upload_uuid,
         name: filename,
         status: "ready", // processing, ready, deleted
         time: new Date().getTime(),
-        time_expire: new Date().getTime(),
+        time_expire: time_expire,
+        max_downloads: maxDownloads,
         size: size,
         ip: req.connection.remoteAddress,
         owner: req.signedCookies.token,
         password: password,
-        // destruct: false, // false, downloads, time
         downloads: [],
         access: []
     }
@@ -106,23 +109,12 @@ app.get('/', (req, res) => {
 
 // validateUpload function add
 app.post('/', upload.single('file'), wrapAsync( async (req, res) => {
-    const { password } = req.body,
+    let { password = '', maxDownloads = '', storageTime = '' } = req.body,
         { originalname, size } = req.file,
         uploadId = genID(6)
-    const data = genData(uploadId, originalname, size, password, req)
+    const data = genData(uploadId, originalname, size, password, req, maxDownloads, storageTime)
     await new Upload(data).save()
     res.redirect(`/file/${uploadId}`)
-}))
-
-app.get('/file/:id', wrapAsync( async (req, res) => {
-    const { id } = req.params
-    const upload = await Upload.findOne({ upload_id: id })
-    if (!upload) throw new AppError('Not Found', 404)
-    if (upload.password === undefined || upload.access.includes(req.signedCookies.token) || upload.owner === req.signedCookies.token) {
-        res.render('file/show', { upload, owner: (upload.owner === req.signedCookies.token) })
-    } else {
-        res.render('file/password', { upload, wrong: false })
-    }
 }))
 
 app.post('/file/:id/pw', wrapAsync(async (req, res) => {
@@ -138,88 +130,7 @@ app.post('/file/:id/pw', wrapAsync(async (req, res) => {
     }
 }))
 
-app.get('/file/:id/start', wrapAsync(async (req, res) => {
-    const { id } = req.params
-    const upload = await Upload.findOne({ upload_id: id })
-    if (upload.password === undefined || upload.access.includes(req.signedCookies.token) || upload.owner === req.signedCookies.token) {
-        res.render('file/download', {upload})
-    } else {
-        throw new AppError('Forbidden', 403)
-    }
-}))
-
-app.get('/file/:id/download', wrapAsync(async (req, res) => {
-    const { id } = req.params
-    const upload = await Upload.findOne({ upload_id: id })
-    if (upload.password === undefined || upload.access.includes(req.signedCookies.token) || upload.owner === req.signedCookies.token) {
-        const file = path.join(__dirname, `/uploads/${upload.uuid}`)
-        res.download(file, upload.name)
-    } else {
-        throw new AppError('Forbidden', 403)
-    }
-}))
-
-app.delete('/file/:id', wrapAsync(async (req, res) => {
-    const { id } = req.params
-    const upload = await Upload.findOne({upload_id: id})
-    if (upload.owner !== req.signedCookies.token) throw new AppError('Forbidden', 403)
-    Upload.findOneAndDelete({ upload_id: id }, (err, doc, result) => {
-        if (err) console.log(err);
-        fs.unlink(path.join(__dirname, `/uploads/${doc.uuid}`), err => {
-            if (err) console.log(err)
-        })
-        res.redirect(`/file/${id}`)
-    })
-}))
-
-// app.post('/', upload.single('file'), (req, res) => {
-//     const { password } = req.body
-//     const { originalname, size } = req.file
-//     req.session.token = uuid(64)
-//     const data = genData(genID(6), originalname, size, req.ip, password)
-//     Upload.create(data)
-//         .catch(err => console.log(err))
-//     res.redirect(`/file/${data.upload_id}`)
-// })
-//
-// app.get('/file/:id', (req, res) => {
-//     const { id } = req.params
-//     const { password } = req.body
-//     Upload.find({ upload_id: id })
-//         .then(data => {
-//             res.render('download', { data: data[0], password, token: req.session.token })
-//         })
-// })
-//
-// app.post('/file/:id', (req, res) => {
-//     const { id } = req.params
-//     const { password } = req.body
-//     Upload.find({ upload_id: id })
-//         .then(data => {
-//             res.render('download', { data: data[0], password, token: req.session.token})
-//         })
-// })
-//
-// app.post('/start/:id', (req, res) => {
-//     const { id } = req.params
-//     Upload.find({upload_id: id})
-//         .then(data => {
-//             const file = path.join(__dirname, `/uploads/${data[0].uuid}-${data[0].file}`)
-//             res.download(file, data[0].file)
-//         })
-//
-// })
-//
-// app.delete('/:id', (req, res) => {
-//     const { id } = req.params
-//     Upload.findOneAndDelete({ upload_id: id }, (err, doc, result) => {
-//         if (err) console.log(err);
-//         fs.unlink(path.join(__dirname, `/uploads/${doc.uuid}-${doc.file}`), err => {
-//             if (err) console.log(err)
-//         })
-//         res.redirect(`/file/${ id }`)
-//     });
-// })
+app.use('/file', fileRoutes)
 
 // // TODO: CATCHING ERRORS // DONE
 // app.all('*', (req, res, next) => {

@@ -22,11 +22,13 @@ function bytesToSize(bytes) {
     <div>
         <h1><%= upload.name %> (<%= bytesToSize(upload.size) %>)</h1>
     </div>
-    <p>Download starting</p>
+    <p>Download starting, if your download does not start click <a id="download" href="<%=  %>">here</a>.</p>
 </div>
 
 <script>
-    window.location.href = window.location.href.replace('start', 'download')
+    const downloadUrl = window.location.href.replace('start', 'download')
+    document.querySelector('#download').href = downloadUrl
+    window.location.href = downloadUrl
 </script>
 
 </body>
