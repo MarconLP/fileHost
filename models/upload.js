@@ -35,10 +35,14 @@ const uploadSchema = new Schema({
         required: true
     },
     owner: {
-        type: String
+        type: String,
+        required: true
     },
     password: {
         type: String
+    },
+    max_downloads: {
+        type: Number
     },
     downloads: {
         type: Array

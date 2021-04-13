@@ -10,13 +10,16 @@ router.use('/:id', wrapAsync( async (req, res, next) => {
     const { id } = req.params
     const upload = await Upload.findOne({ upload_id: id })
     if (!upload) throw new AppError('Not Found', 404)
-    if (upload.password === '' || upload.access.includes(req.signedCookies.token) || upload.owner === req.signedCookies.token) {
-        res.locals.upload = upload
-        res.locals.id = id
-        next()
-    } else {
+    if (!(upload.password === '' || upload.access.includes(req.signedCookies.token) || upload.owner === req.signedCookies.token))
         res.render('file/password', { upload, wrong: false })
+    if ((upload.max_downloads !== null && upload.downloads.length >= upload.max_downloads) || upload.downloads.length >= 50)
+        throw new AppError('too many downloads', 403)
+    if ((upload.time + (upload.time_expire * 1000)) < new Date().getTime()) {
+        throw new AppError('expired', 410)
     }
+    res.locals.upload = upload
+    res.locals.id = id
+    next()
 }))
 
 router.get('/:id', wrapAsync( async (req, res) => {
@@ -30,6 +33,8 @@ router.get('/:id/start', wrapAsync(async (req, res) => {
 
 router.get('/:id/download', wrapAsync(async (req, res) => {
     const upload = res.locals.upload
+    upload.downloads.push({ ip: req.connection.remoteAddress, date: new Date().getTime() })
+    await upload.save()
     const file = path.join(__dirname, `../uploads/${upload.uuid}`)
     res.download(file, upload.name)
 }))
