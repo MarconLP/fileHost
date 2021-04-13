@@ -23,7 +23,8 @@ const uploadSchema = new Schema({
         required: true
     },
     time_expire: {
-        type: Number
+        type: Number,
+        enum: [300, 3600, 86400, 604800, 2628000]
     },
     size: {
         type: Number,
@@ -39,9 +40,6 @@ const uploadSchema = new Schema({
     password: {
         type: String
     },
-    // destruct: {
-    //     type: String,
-    // },
     downloads: {
         type: Array
     },

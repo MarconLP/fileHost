@@ -26,10 +26,10 @@ const upload = multer({
             cb(null, 'uploads')
         },
         filename: (req, file, cb) => {
-            // const { originalname } = file
             cb(null, upload_uuid)
         }
-    })
+    }),
+    limits: { fileSize: 1073741824 }
 })
 
 mongoose.connect(`mongodb://${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`, {
@@ -107,8 +107,7 @@ app.get('/', (req, res) => {
     res.render('index')
 })
 
-// validateUpload function add
-app.post('/', upload.single('file'), wrapAsync( async (req, res) => {
+app.post('/', upload.single('file'), validateUpload, wrapAsync( async (req, res) => {
     let { password = '', maxDownloads = '', storageTime = '' } = req.body,
         { originalname, size } = req.file,
         uploadId = genID(6)
