@@ -2,8 +2,6 @@ const express = require('express'),
     app = express(),
     path = require('path'),
     port = 3000,
-    http = require('http'),
-    fs = require('fs'),
     multer = require('multer'),
     uuid = require('uuid').v4,
     mongoose = require('mongoose'),
@@ -12,13 +10,13 @@ const express = require('express'),
     session = require('express-session'),
     bodyParser = require('body-parser'),
     Upload = require('./models/upload'),
-    AppError = require('./utils/AppError'),
     wrapAsync = require('./utils/wrapAsync'),
-    { uploadSchema } = require('./schemas/joiSchemas'),
-    fileRoutes = require('./routes/file')
+    fileRoutes = require('./routes/file'),
+    { genID, genData } = require('./utils/generate'),
+    { validateUpload } = require('./middleware')
 
 require('dotenv').config()
-const upload_uuid = uuid()
+let upload_uuid
 
 const upload = multer({
     storage: multer.diskStorage({
@@ -26,6 +24,7 @@ const upload = multer({
             cb(null, 'uploads')
         },
         filename: (req, file, cb) => {
+            upload_uuid = uuid()
             cb(null, upload_uuid)
         }
     }),
@@ -54,16 +53,7 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.use(express.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }));
-
-const validateUpload = (req, res, next) => {
-    let { error } = uploadSchema.validate(req.body);
-    if (error) {
-        const msg = error.details.map(el => el.message).join(',')
-        throw new AppError(msg, 400)
-    } else {
-        next()
-    }
-}
+app.use(express.static('public'))
 
 app.use((req, res, next) => {
     if (!req.signedCookies.token) {
@@ -74,35 +64,6 @@ app.use((req, res, next) => {
     next()
 })
 
-function genData(uploadId, filename, size, password, req, maxDownloads, time_expire) {
-    return data = {
-        upload_id: uploadId,
-        uuid: upload_uuid,
-        name: filename,
-        status: "ready", // processing, ready, deleted
-        time: new Date().getTime(),
-        time_expire: time_expire,
-        max_downloads: maxDownloads,
-        size: size,
-        ip: req.connection.remoteAddress,
-        owner: req.signedCookies.token,
-        password: password,
-        downloads: [],
-        access: []
-    }
-}
-
-function genID(length) {
-    const chars = "qwertzuiopasdfghjklyxcvbnmQWERTZUIOASDFGHJKLYXCVBNM1234567890"
-    let id = ""
-    while (true) {
-        id += chars[Math.floor(Math.random() * chars.length)]
-        if (id.length >= length) {
-            return id
-        }
-    }
-}
-
 app.get('/', (req, res) => {
     res.render('index')
 })
@@ -111,7 +72,7 @@ app.post('/', upload.single('file'), validateUpload, wrapAsync( async (req, res)
     let { password = '', maxDownloads = '', storageTime = '' } = req.body,
         { originalname, size } = req.file,
         uploadId = genID(6)
-    const data = genData(uploadId, originalname, size, password, req, maxDownloads, storageTime)
+    const data = genData(upload_uuid, uploadId, originalname, size, password, req, maxDownloads, storageTime)
     await new Upload(data).save()
     res.redirect(`/file/${uploadId}`)
 }))
@@ -129,7 +90,7 @@ app.post('/file/:id/pw', wrapAsync(async (req, res) => {
     }
 }))
 
-app.use('/file', fileRoutes)
+app.use('/file/:id', fileRoutes)
 
 // // TODO: CATCHING ERRORS // DONE
 // app.all('*', (req, res, next) => {

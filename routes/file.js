@@ -1,12 +1,12 @@
 const express = require('express')
 const AppError = require('../utils/AppError')
 const wrapAsync = require('../utils/wrapAsync')
-const router = express.Router()
+const router = express.Router({ mergeParams: true })
 const path = require('path')
 const Upload = require('../models/upload')
 const fs = require('fs')
 
-router.use('/:id', wrapAsync( async (req, res, next) => {
+router.use('/', wrapAsync( async (req, res, next) => {
     const { id } = req.params
     const upload = await Upload.findOne({ upload_id: id })
     if (!upload) throw new AppError('Not Found', 404)
@@ -22,16 +22,16 @@ router.use('/:id', wrapAsync( async (req, res, next) => {
     next()
 }))
 
-router.get('/:id', wrapAsync( async (req, res) => {
+router.get('/', wrapAsync( async (req, res) => {
     const upload = res.locals.upload
     res.render('file/show', { upload, owner: (upload.owner === req.signedCookies.token) })
 }))
 
-router.get('/:id/start', wrapAsync(async (req, res) => {
+router.get('/start', wrapAsync(async (req, res) => {
     res.render('file/download', {upload: res.locals.upload})
 }))
 
-router.get('/:id/download', wrapAsync(async (req, res) => {
+router.get('/download', wrapAsync(async (req, res) => {
     const upload = res.locals.upload
     upload.downloads.push({ ip: req.connection.remoteAddress, date: new Date().getTime() })
     await upload.save()
@@ -39,7 +39,7 @@ router.get('/:id/download', wrapAsync(async (req, res) => {
     res.download(file, upload.name)
 }))
 
-router.delete('/:id', wrapAsync(async (req, res) => {
+router.delete('/', wrapAsync(async (req, res) => {
     const id = res.locals.id
     Upload.findOneAndDelete({ upload_id: id }, (err, doc, result) => {
         if (err) console.log(err);
